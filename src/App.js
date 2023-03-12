@@ -21,14 +21,13 @@ import {
   getProvider,
   getSigner,
 } from "./connection/metamask";
-import { formatEther, Contract } from "ethers";
-import teamLead from "./abi/teamLead.json";
+import { formatEther, Contract, parseEther } from "ethers";
+import ABI from "./abi/ABI.json";
 
 function App() {
   const [account, setAccount] = useState("");
   const [myBalance, setMyBalance] = useState("");
-  const [teamLeadName, setTeamLeadName] = useState("");
-  const [newTeamLead, setNewTeamLead] = useState("");
+  const [mintValue, setMintValue] = useState("");
   const [chainError, setChainError] = useState(null);
   const toast = useToast();
 
@@ -39,36 +38,15 @@ function App() {
     }
   }, [account]);
 
-  useEffect(() => {
-    if (window.ethereum) {
-      const teamLeadContract = async () => {
-        const signer = await getSigner();
-        // Create a contract
-        const contract = new Contract(
-          "0xB0b72FB76a9390943A869eD2e837D183Cd44F954",
-          teamLead,
-          signer
-        );
-
-        contract.on("LeadSet", (sender, newTeamLead) => {
-          console.log("sender ", sender);
-          console.log("new team lead ", newTeamLead);
-        });
-      };
-
-      teamLeadContract();
-    }
-  }, []);
-
   const checkMetamask = async () => {
     if (isMetaMaskInstalled) {
-      if (window.ethereum.chainId === "0x13881") {
+      if (window.ethereum.chainId === "0x61") {
         const userAccount = await connect();
         console.log(userAccount);
         setAccount(userAccount[0]);
       } else {
-        setChainError("change to Mumbai Polygon");
-        throw new Error("change to Mumbai Polygon");
+        setChainError("Change to Binance Smart Contract Testnet");
+        throw new Error("Change to Binance Smart Contract Testnet");
       }
     } else {
       throw new Error("Install metamask");
@@ -78,36 +56,40 @@ function App() {
   const getBalance = async (myAccount) => {
     const provider = getProvider();
     const balance = await provider.getBalance(myAccount);
-    console.log(formatEther(balance));
     setMyBalance(formatEther(balance));
     return balance;
   };
 
-  const teamLeadContract = async () => {
+  const venusSmartContract = async () => {
     const signer = await getSigner();
     // Create a contract
-    const teamLeadContract = new Contract(
-      "0xB0b72FB76a9390943A869eD2e837D183Cd44F954",
-      teamLead,
+    const venusSmartContract = new Contract(
+      "0x2E7222e51c0f6e98610A1543Aa3836E092CDe62c",
+      ABI,
       signer
     );
-    return teamLeadContract;
+    return venusSmartContract;
   };
 
-  const getTeamLead = async () => {
-    try {
-      const teamLeadCon = await teamLeadContract();
-      const currentTeamLead = await teamLeadCon.getLead();
-      setTeamLeadName(currentTeamLead);
-    } catch (error) {
-      console.log(error);
+  const mint = async () => {
+    let balance = await getBalance(account);
+    balance = parseInt(balance) * 10 ** -18;
+
+    if (balance < Number(mintValue)) {
+      toast({
+        position: "top-left",
+        render: () => (
+          <Box color="white" p={3} bg="red.500">
+            Insufficient Balance!
+          </Box>
+        ),
+      });
     }
-  };
-
-  const setWinner = async () => {
     try {
-      const teamLeadCon = await teamLeadContract();
-      const tx = await teamLeadCon.setLead(newTeamLead);
+      const smartContract = await venusSmartContract();
+      const tx = await smartContract.mint({
+        value: parseEther(mintValue),
+      });
       const receipt = await tx.wait(1);
       if (receipt.status) {
         toast({
@@ -141,26 +123,24 @@ function App() {
                 <AlertIcon />
                 <AlertTitle>Wrong Network!</AlertTitle>
                 <AlertDescription>
-                  Please change to Polygon Mumbai testnet
+                  Please change to Binance Smart Contract testnet
                 </AlertDescription>
               </Alert>
             )}
-            <Text>Team Lead App.</Text>
+            <Text>Venus Smart Contract.</Text>
             <Text>{account}</Text>
             <Text>{myBalance}</Text>
             <Button onClick={walletConnection} disabled={account}>
               {account ? "Connected" : "Connect Wallet"}
             </Button>
-            <HStack spacing="24px">
-              <Button onClick={getTeamLead}>Get Team Lead</Button>
-              <Text>{teamLeadName}</Text>
-            </HStack>
-            <HStack spacing="24px">
+
+            <HStack spacing="20px">
               <Input
-                value={newTeamLead}
-                onChange={(e) => setNewTeamLead(e.target.value)}
+                value={mintValue}
+                onChange={(e) => setMintValue(e.target.value)}
+                placeholder="enter a value"
               ></Input>
-              <Button onClick={setWinner}>Set Team Lead</Button>
+              <Button onClick={mint}>Click To Mint</Button>
             </HStack>
           </VStack>
         </Grid>
